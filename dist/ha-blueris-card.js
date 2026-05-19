@@ -1,6 +1,6 @@
 /* HA-Blueris-Card - direct-only Lovelace card for Blue Iris UI3 */
 (() => {
-  const VERSION = "0.5.0";
+  const VERSION = "0.5.1";
   const DEFAULT_GROUPS = [{ id: "index", name: "Todas" }];
   const DEFAULT_PROFILES = [
     { id: "2160p VBR^", name: "4K VBR" },
@@ -101,27 +101,33 @@
       const defaultPort = ssl ? 443 : 80;
       return `${ssl ? "https" : "http"}://${host}${port && port !== defaultPort ? `:${port}` : ""}/`;
     }
+    _applyAuth(url) {
+      if (!hasCreds(this._config)) return;
+      if (this._config.direct_auth === "url") {
+        url.searchParams.set("user", this._config.username);
+        url.searchParams.set("pw", this._config.password);
+      } else if (this._config.direct_auth === "basic_url") {
+        url.username = this._config.username;
+        url.password = this._config.password;
+      }
+    }
     _ui3Url() {
       const url = new URL(cleanPath(this._config.ui3_path || "ui3.htm"), this._base());
       if (this._config.maximize !== false) url.searchParams.set("maximize", "1");
       url.searchParams.set("timeout", String(this._config.timeout ?? 0));
       if (this._group) url.searchParams.set("group", this._group);
       if (this._profile) url.searchParams.set("p", this._profile);
-      if (this._config.direct_auth === "url" && hasCreds(this._config)) {
-        url.searchParams.set("user", this._config.username);
-        url.searchParams.set("pw", this._config.password);
-      }
+      this._applyAuth(url);
       url.searchParams.set("_ha", String(Date.now()));
       return url.toString();
     }
     async _camlist() {
       const url = new URL("json", this._base());
       const body = { cmd: "camlist" };
+      this._applyAuth(url);
       if (this._config.direct_auth === "url" && hasCreds(this._config)) {
         body.user = this._config.username;
         body.pw = this._config.password;
-        url.searchParams.set("user", this._config.username);
-        url.searchParams.set("pw", this._config.password);
       }
       const resp = await fetch(url.toString(), {
         method: "POST",
@@ -184,7 +190,7 @@
     _render() {
       const c = this._config;
       this.shadowRoot.innerHTML = `<style>${editorStyles()}</style><div class="ed">
-        <section><h3>Blue Iris direto</h3><div class="grid3"><label>Host/IP<input id="host" value="${attr(c.host)}"></label><label>Porta<input id="port" type="number" value="${attr(c.port)}"></label><label class="chk"><input id="ssl" type="checkbox" ${c.ssl ? "checked" : ""}> HTTPS</label></div><div class="grid2"><label>Usuário<input id="username" value="${attr(c.username)}" autocomplete="off"></label><label>Senha<input id="password" type="password" value="${attr(c.password)}" autocomplete="new-password"></label></div><label>Autenticação<select id="direct_auth"><option value="none" ${c.direct_auth === "none" ? "selected" : ""}>Sem senha / liberado na LAN</option><option value="url" ${c.direct_auth === "url" ? "selected" : ""}>user/pw na URL direta</option></select></label><p>Standalone: sem backend do Home Assistant e sem login por sessão. O iframe abre a UI3 diretamente.</p></section>
+        <section><h3>Blue Iris direto</h3><div class="grid3"><label>Host/IP<input id="host" value="${attr(c.host)}"></label><label>Porta<input id="port" type="number" value="${attr(c.port)}"></label><label class="chk"><input id="ssl" type="checkbox" ${c.ssl ? "checked" : ""}> HTTPS</label></div><div class="grid2"><label>Usuário<input id="username" value="${attr(c.username)}" autocomplete="off"></label><label>Senha<input id="password" type="password" value="${attr(c.password)}" autocomplete="new-password"></label></div><label>Autenticação<select id="direct_auth"><option value="none" ${c.direct_auth === "none" ? "selected" : ""}>Sem senha / liberado na LAN</option><option value="url" ${c.direct_auth === "url" ? "selected" : ""}>Query user/pw: ?user=&pw=</option><option value="basic_url" ${c.direct_auth === "basic_url" ? "selected" : ""}>Basic URL: http://user:senha@host</option></select></label><p>Standalone: sem backend do Home Assistant e sem login por sessão. O iframe abre a UI3 diretamente.</p></section>
         <section><h3>Card</h3><div class="grid2"><label>Título<input id="title" value="${attr(c.title)}"></label><label>Altura<input id="height" value="${attr(c.height)}"></label><label>Grupo padrão<input id="default_group" value="${attr(c.default_group)}"></label><label>Perfil padrão<input id="default_profile" value="${attr(c.default_profile)}"></label></div><div class="checks"><label><input id="discover_groups" type="checkbox" ${c.discover_groups !== false ? "checked" : ""}> Buscar grupos por camlist direto</label><label><input id="refresh_groups_on_open" type="checkbox" ${c.refresh_groups_on_open !== false ? "checked" : ""}> Buscar ao abrir</label><label><input id="maximize" type="checkbox" ${c.maximize !== false ? "checked" : ""}> UI3 maximizada</label><label><input id="show_open_button" type="checkbox" ${c.show_open_button !== false ? "checked" : ""}> Botão abrir</label></div></section>
         <section><h3>Listas</h3><div class="grid2"><label>Grupos manuais<textarea id="manual_groups">${html(formatList(c.manual_groups))}</textarea></label><label>Perfis<textarea id="profiles">${html(formatList(c.profiles))}</textarea></label></div><p>Formato: <code>id|Nome</code>, um por linha. Para 480p use <code>480p</code>, sem <code>^</code>.</p></section>
       </div>`;
@@ -197,7 +203,7 @@
   }
 
   function hasCreds(c) { return !!(c.username || c.password); }
-  function normalizeConfig(c) { c.port = Number(c.port || 80); c.timeout = Number(c.timeout || 0); c.direct_auth = c.direct_auth === "url" ? "url" : "none"; c.manual_groups = normalizeItems(c.manual_groups, DEFAULT_GROUPS); c.profiles = normalizeItems(c.profiles, DEFAULT_PROFILES); return c; }
+  function normalizeConfig(c) { c.port = Number(c.port || 80); c.timeout = Number(c.timeout || 0); c.direct_auth = ["none", "url", "basic_url"].includes(c.direct_auth) ? c.direct_auth : "none"; c.manual_groups = normalizeItems(c.manual_groups, DEFAULT_GROUPS); c.profiles = normalizeItems(c.profiles, DEFAULT_PROFILES); return c; }
   function normalizeItems(v, fallback) { if (typeof v === "string") return parseList(v, fallback); if (!Array.isArray(v)) return [...fallback]; const items = v.map(x => typeof x === "string" ? { id: x, name: x } : { id: String(x?.id || x?.optionValue || "").trim(), name: String(x?.name || x?.optionDisplay || x?.id || "").trim() }).filter(x => x.id); return items.length ? dedupe(items) : [...fallback]; }
   function parseList(text, fallback) { const items = String(text || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => { const [id, ...name] = line.split("|"); return { id: id.trim(), name: (name.join("|") || id).trim() }; }).filter(x => x.id); return items.length ? dedupe(items) : [...fallback]; }
   function formatList(items) { return normalizeItems(items, []).map(x => `${x.id}|${x.name || x.id}`).join("\n"); }
