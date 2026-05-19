@@ -2,6 +2,6 @@
   "name": "Blue Iris UI3 Card",
   "content_in_root": false,
   "filename": "dist/blueiris-ui3-card.js",
-  "render_readme": true,
+  "render_readme": false,
   "homeassistant": "2024.8.0"
 }
