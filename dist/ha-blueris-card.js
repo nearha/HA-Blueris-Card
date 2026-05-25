@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.7.0";
+  const VERSION = "0.7.1";
   const API = "blueiris_ui3";
 
   const DEFAULT_GROUPS = [{ id: "index", name: "Todas" }];
@@ -165,7 +165,7 @@
         }
 
         this._ensureSelections();
-        this._makeUrl();
+        await this._makeUrl();
         this._notice = "UI3 autenticada pelo backend";
       } catch (error) {
         this._url = "";
@@ -190,7 +190,7 @@
       }
     }
 
-    _makeUrl() {
+    async _makeUrl() {
       const entryId = this._entryId();
       if (!entryId) {
         this._url = "";
@@ -205,12 +205,17 @@
         ha_card_nonce: `${Date.now()}_${++this._nonce}`,
       });
 
-      this._url = `/api/${API}/${entryId}/direct_ui3?${params}`;
+      const payload = await this._hass.callApi(
+        "GET",
+        `${API}/${entryId}/direct_ui3_url?${params}`
+      );
+
+      this._url = payload.url;
     }
 
     async _refreshFrame() {
       try {
-        this._makeUrl();
+        await this._makeUrl();
         this._error = "";
       } catch (error) {
         this._error = errorMessage(error);
@@ -893,7 +898,7 @@
   }
 
   console.info(
-    `%c HA-BLUERIS-CARD %c v${VERSION} authenticated-direct loaded `,
+    `%c HA-BLUERIS-CARD %c v${VERSION} authenticated-direct-token loaded `,
     "color:white;background:#1565c0;font-weight:700",
     "color:#1565c0;background:white;font-weight:700"
   );
