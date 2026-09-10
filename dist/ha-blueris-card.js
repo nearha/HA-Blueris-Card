@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.7.4";
+  const VERSION = "0.7.5";
   const API = "blueiris_ui3";
 
   const DEFAULT_GROUPS = [{ id: "index", name: "Todas" }];
@@ -27,6 +27,7 @@
     maximize: true,
     show_header: true,
     show_footer: true,
+    show_controls: true,
     show_open_button: true,
     show_refresh_button: true,
     reload_on_resume: false,
@@ -290,6 +291,7 @@
             </div>
           ` : ""}
 
+          ${this._config.show_controls !== false ? `
           <div class="controls">
             <label>
               <span>Grupo</span>
@@ -306,6 +308,7 @@
             ${this._config.show_refresh_button !== false ? `<button id="refresh">Atualizar</button>` : ""}
             ${this._config.show_open_button !== false ? `<button id="open">Abrir</button>` : ""}
           </div>
+          ` : ""}
 
           <div class="frame" style="height:${escapeHtml(this._frameHeightStyle())}">
             ${this._url ? `<iframe src="${escapeHtml(this._url)}" allow="autoplay; fullscreen" referrerpolicy="same-origin" scrolling="no"></iframe>` : ""}
@@ -415,7 +418,7 @@
     async _setConfigValue(key, value) {
       const next = { ...this._config, [key]: value };
       if (["timeout", "resume_reload_delay", "auto_height_margin"].includes(key)) next[key] = Number(value || 0);
-      if (["maximize", "show_header", "show_footer", "show_open_button", "show_refresh_button", "reload_on_resume", "auto_height"].includes(key)) next[key] = Boolean(value);
+      if (["maximize", "show_header", "show_footer", "show_controls", "show_open_button", "show_refresh_button", "reload_on_resume", "auto_height"].includes(key)) next[key] = Boolean(value);
       if (key === "entry_id") this._loadedEntry = "";
       this._config = next;
       this._emit();
@@ -473,6 +476,7 @@
               <label><input id="reload_on_resume" type="checkbox" ${c.reload_on_resume === true ? "checked" : ""}>Recarregar ao voltar</label>
               <label><input id="show_header" type="checkbox" ${c.show_header !== false ? "checked" : ""}>Cabeçalho</label>
               <label><input id="show_footer" type="checkbox" ${c.show_footer !== false ? "checked" : ""}>Rodapé</label>
+              <label><input id="show_controls" type="checkbox" ${c.show_controls !== false ? "checked" : ""}>Mostrar controles de grupo/resolução</label>
               <label><input id="show_open_button" type="checkbox" ${c.show_open_button !== false ? "checked" : ""}>Botão abrir</label>
               <label><input id="show_refresh_button" type="checkbox" ${c.show_refresh_button !== false ? "checked" : ""}>Botão atualizar</label>
             </div>
@@ -484,7 +488,7 @@
       const bindChecked = (id, key) => this.shadowRoot.getElementById(id)?.addEventListener("change", (event) => this._setConfigValue(key, event.target.checked));
 
       ["entry_id", "title", "height", "default_group", "default_profile", "timeout", "resume_reload_delay", "auto_height_margin"].forEach((id) => bindValue(id, id));
-      ["auto_height", "maximize", "show_header", "show_footer", "show_open_button", "show_refresh_button", "reload_on_resume"].forEach((id) => bindChecked(id, id));
+      ["auto_height", "maximize", "show_header", "show_footer", "show_controls", "show_open_button", "show_refresh_button", "reload_on_resume"].forEach((id) => bindChecked(id, id));
     }
   }
 
